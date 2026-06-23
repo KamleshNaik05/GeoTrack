@@ -33,6 +33,7 @@ html, body, #root {
 /* Custom leaflet control positioning and style fixes */
 .leaflet-container {
   font-family: var(--font-sans);
+  z-index: 0 !important;
 }
 
 /* Remove default Leaflet pin shadow and border on DivIcon */
