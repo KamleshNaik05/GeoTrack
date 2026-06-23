@@ -30,6 +30,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../hooks/useAuth';
 
 // Leaflet map center helper
 function MapRecenter({ coords }) {
@@ -73,6 +74,54 @@ export default function TraineeDetail() {
   const [trailDate, setTrailDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [trailLocations, setTrailLocations] = useState([]);
   const [loadingTrail, setLoadingTrail] = useState(false);
+
+  const { user: adminUser } = useAuth();
+
+  const handleShiftChange = async (selectedShift) => {
+    if (!trainee) return;
+    const previousShiftCode = trainee.shift_code;
+    const selectedValue = selectedShift === "" ? null : selectedShift;
+
+    try {
+      // 1. Get current logged in admin user ID
+      let adminId = adminUser?.id;
+      if (!adminId) {
+        const { data: authData } = await supabase.auth.getUser();
+        adminId = authData?.user?.id;
+      }
+
+      // 2. Update the profiles table in Supabase
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ shift_code: selectedValue })
+        .eq('id', id);
+
+      if (profileError) throw profileError;
+
+      // 3. Insert record into shift_history table to track changes
+      const { error: historyError } = await supabase
+        .from('shift_history')
+        .insert({
+          trainee_id: id,
+          old_shift: previousShiftCode,
+          new_shift: selectedValue,
+          changed_by: adminId
+        });
+
+      if (historyError) throw historyError;
+
+      // 4. Update local state
+      setTrainee(prev => ({
+        ...prev,
+        shift_code: selectedValue
+      }));
+
+      toast.success('Shift updated successfully');
+    } catch (err) {
+      console.error('Error changing shift:', err.message);
+      toast.error('Failed to update shift: ' + err.message);
+    }
+  };
 
   // Load trainee profile
   const fetchProfile = useCallback(async () => {
@@ -341,9 +390,15 @@ export default function TraineeDetail() {
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h3 className="font-extrabold text-base text-gray-900 truncate leading-tight">{trainee.full_name}</h3>
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 bg-gray-100 text-gray-600">
-                Shift {trainee.shift_code || 'A'}
-              </span>
+              {trainee.shift_code ? (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 bg-gray-100 text-gray-600">
+                  Shift {trainee.shift_code}
+                </span>
+              ) : (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 bg-gray-100 text-gray-400">
+                  No Shift
+                </span>
+              )}
               {isOnline ? (
                 <span className="flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 font-extrabold text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
                   Active
@@ -356,17 +411,40 @@ export default function TraineeDetail() {
             </div>
             <span className="text-xs font-mono text-gray-400 block">ID: {trainee.employee_id || 'N/A'}</span>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs text-gray-550 pt-1 font-medium">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-gray-550 pt-1 font-medium">
               <span className="flex items-center gap-1.5 truncate"><Building2 size={13} className="text-gray-400" /> {trainee.division || 'N/A'}</span>
               <span className="flex items-center gap-1.5 truncate"><BookOpen size={13} className="text-gray-400" /> {trainee.institution || 'N/A'}</span>
               <span className="flex items-center gap-1.5 truncate"><Phone size={13} className="text-gray-400" /> {trainee.contact || 'N/A'}</span>
-              <span className="flex items-center gap-1.5 truncate">
-                <Clock size={13} className="text-gray-400" /> 
-                <span className="font-semibold">Shift:</span> {
-                  trainee.shift_code === 'B' ? 'B — Evening (14:00–22:00)' :
-                  trainee.shift_code === 'C' ? 'C — Night (22:00–06:00)' : 'A — Morning (06:00–14:00)'
-                }
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center gap-3 pt-2 border-t border-gray-100 mt-2">
+              <span className="flex items-center gap-1.5 text-xs text-gray-550 font-medium">
+                <Clock size={13} className="text-gray-400 shrink-0" />
+                <span className="font-bold shrink-0">Shift:</span>
+                {trainee.shift_code ? (
+                  <span className="text-gray-800 font-semibold">
+                    {trainee.shift_code === 'A' ? 'A — Morning Shift (06:00 – 14:00)' :
+                     trainee.shift_code === 'B' ? 'B — Evening Shift (14:00 – 22:00)' :
+                     'C — Night Shift (22:00 – 06:00)'}
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-400 italic">No shift assigned</span>
+                )}
               </span>
+              
+              <div className="w-full md:w-auto flex items-center gap-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide shrink-0">Assign Shift:</span>
+                <select
+                  value={trainee.shift_code || ''}
+                  onChange={(e) => handleShiftChange(e.target.value)}
+                  className="w-full md:w-auto h-8 px-2 bg-white border border-gray-300 rounded-lg text-xs text-gray-800 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 cursor-pointer"
+                >
+                  <option value="">(None / Unassigned)</option>
+                  <option value="A">A — Morning Shift (06:00 – 14:00)</option>
+                  <option value="B">B — Evening Shift (14:00 – 22:00)</option>
+                  <option value="C">C — Night Shift (22:00 – 06:00)</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>

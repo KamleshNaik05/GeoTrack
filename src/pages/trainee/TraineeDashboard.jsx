@@ -23,7 +23,7 @@ function MapRecenter({ coords }) {
 
 export default function TraineeDashboard() {
   const { 
-    profile, 
+    profile: authProfile, 
     isSharing, 
     coords, 
     locationError, 
@@ -31,6 +31,8 @@ export default function TraineeDashboard() {
     startTracking, 
     stopTracking 
   } = useAuth();
+
+  const [profile, setProfile] = useState(null);
 
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [recentAlerts, setRecentAlerts] = useState([]);
@@ -42,15 +44,29 @@ export default function TraineeDashboard() {
 
   // Fetch today's attendance, last 5 alerts, and geofences
   const loadDashboardData = async () => {
-    if (!profile) return;
+    if (!authProfile) return;
     
+    // 0. Fetch Profile with joined Shift info
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, shifts:shift_code(shift_name, start_time, end_time)')
+        .eq('id', authProfile.id)
+        .single();
+      if (!error && data) {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error('Error fetching profile with shift details:', err.message);
+    }
+
     // 1. Fetch Today's Attendance
     try {
       setLoadingAtt(true);
       const { data, error } = await supabase
         .from('attendance')
         .select('*')
-        .eq('trainee_id', profile.id)
+        .eq('trainee_id', authProfile.id)
         .eq('date', todayStr)
         .maybeSingle();
 
@@ -68,7 +84,7 @@ export default function TraineeDashboard() {
       const { data, error } = await supabase
         .from('alerts')
         .select('*')
-        .eq('trainee_id', profile.id)
+        .eq('trainee_id', authProfile.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -93,6 +109,7 @@ export default function TraineeDashboard() {
   };
 
   useEffect(() => {
+    if (!authProfile?.id) return;
     loadDashboardData();
 
     // Subscribe to attendance & alert tables to refresh dashboards live
@@ -100,7 +117,7 @@ export default function TraineeDashboard() {
       .channel('trainee-attendance-feed')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'attendance', filter: `trainee_id=eq.${profile?.id}` },
+        { event: '*', schema: 'public', table: 'attendance', filter: `trainee_id=eq.${authProfile.id}` },
         () => loadDashboardData()
       )
       .subscribe();
@@ -109,7 +126,7 @@ export default function TraineeDashboard() {
       .channel('trainee-alerts-feed')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'alerts', filter: `trainee_id=eq.${profile?.id}` },
+        { event: '*', schema: 'public', table: 'alerts', filter: `trainee_id=eq.${authProfile.id}` },
         () => loadDashboardData()
       )
       .subscribe();
@@ -118,7 +135,7 @@ export default function TraineeDashboard() {
       supabase.removeChannel(attendanceChannel);
       supabase.removeChannel(alertsChannel);
     };
-  }, [profile?.id]);
+  }, [authProfile?.id]);
 
   const handleToggleSharing = () => {
     if (isSharing) {
@@ -165,6 +182,12 @@ export default function TraineeDashboard() {
     });
   };
 
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    return `${parts[0]}:${parts[1]}`;
+  };
+
   return (
     <div className="space-y-6 select-none pb-8">
       {/* 1. Welcome Card */}
@@ -179,19 +202,21 @@ export default function TraineeDashboard() {
             <span>•</span>
             <span>Trainee ID: <strong className="text-gray-700">{profile?.employee_id || 'TR-001'}</strong></span>
           </div>
-          <div className="text-xs text-gray-500 mt-2 space-y-0.5">
-            <div>
-              Shift {profile?.shift_code || 'A'} — {
-                profile?.shift_code === 'B' ? 'Evening (14:00–22:00)' :
-                profile?.shift_code === 'C' ? 'Night (22:00–06:00)' : 'Morning (06:00–14:00)'
-              }
-            </div>
-            <div className="text-[11px] text-gray-450 font-semibold mt-0.5">
-              ⏰ Your shift starts at {
-                profile?.shift_code === 'B' ? '14:00' :
-                profile?.shift_code === 'C' ? '22:00' : '06:00'
-              }
-            </div>
+          <div className="mt-2">
+            {profile?.shifts ? (
+              <div className="space-y-0.5">
+                <div className="text-sm text-gray-600 font-medium">
+                  ⏰ Shift {profile.shift_code} — {profile.shifts.shift_name} ({formatTime(profile.shifts.start_time)}–{formatTime(profile.shifts.end_time)})
+                </div>
+                <div className="text-[11px] text-gray-450 font-semibold">
+                  ⏰ Your shift starts at {formatTime(profile.shifts.start_time)}
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 italic">
+                ⏰ No shift assigned yet
+              </div>
+            )}
           </div>
         </div>
         <div className="bg-primary-50 text-primary-700 border border-primary-100 rounded-md py-1.5 px-3 text-right shrink-0">

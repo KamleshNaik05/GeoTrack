@@ -17,25 +17,8 @@ export default function Register() {
   const [division, setDivision] = useState('RMHP');
   const [contact, setContact] = useState('');
   const [employeeId, setEmployeeId] = useState('');
-  const [shiftCode, setShiftCode] = useState('A');
-  const [shifts, setShifts] = useState([]);
 
-  useEffect(() => {
-    const fetchShifts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('shifts')
-          .select('*')
-          .order('shift_code', { ascending: true });
-        if (!error && data) {
-          setShifts(data);
-        }
-      } catch (err) {
-        console.error('Error fetching shifts:', err);
-      }
-    };
-    fetchShifts();
-  }, []);
+
 
   // Validation / Error states
   const [errors, setErrors] = useState({});
@@ -81,24 +64,12 @@ export default function Register() {
       division: division,
       contact: contact,
       employee_id: employeeId,
-      shift_code: shiftCode,
     });
 
     if (error) {
       toast.error(error.message || 'Registration failed. Try again.');
       setIsLoading(false);
     } else {
-      // Fallback: update profile table directly with shift_code
-      try {
-        if (data?.user?.id) {
-          await supabase
-            .from('profiles')
-            .update({ shift_code: shiftCode })
-            .eq('id', data.user.id);
-        }
-      } catch (err) {
-        console.error('Profile fallback update error:', err);
-      }
       toast.success('Registration successful! Please sign in.');
       navigate('/login');
     }
@@ -240,35 +211,7 @@ export default function Register() {
               </select>
             </div>
 
-            <div>
-              <label htmlFor="shiftCode" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                ASSIGNED SHIFT
-              </label>
-              <select
-                id="shiftCode"
-                value={shiftCode}
-                onChange={(e) => setShiftCode(e.target.value)}
-                disabled={isLoading}
-                className="w-full h-11 md:h-10 px-3 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-              >
-                {(shifts.length > 0 ? shifts : [
-                  { shift_code: 'A', shift_name: 'Morning Shift', start_time: '06:00:00', end_time: '14:00:00' },
-                  { shift_code: 'B', shift_name: 'Evening Shift', start_time: '14:00:00', end_time: '22:00:00' },
-                  { shift_code: 'C', shift_name: 'Night Shift', start_time: '22:00:00', end_time: '06:00:00' }
-                ]).map((s) => {
-                  const formatTime = (timeStr) => {
-                    if (!timeStr) return '';
-                    const parts = timeStr.split(':');
-                    return `${parts[0]}:${parts[1]}`;
-                  };
-                  return (
-                    <option key={s.shift_code} value={s.shift_code}>
-                      {s.shift_code} — {s.shift_name} ({formatTime(s.start_time)} – {formatTime(s.end_time)})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
+
 
             {/* ROW 4: Contact Number & Employee/Trainee ID */}
             <div>

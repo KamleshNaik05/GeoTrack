@@ -197,9 +197,15 @@ export default function TraineesList() {
                   <span className="truncate text-[11px] text-gray-450">{trainee.institution || 'NIT Rourkela'}</span>
                 </div>
                 <div className="mt-1">
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 bg-gray-100 text-gray-600">
-                    Shift {trainee.shift_code || 'A'}
-                  </span>
+                  {trainee.shift_code ? (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 bg-gray-100 text-gray-600">
+                      Shift {trainee.shift_code}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 bg-gray-100 text-gray-400">
+                      No Shift
+                    </span>
+                  )}
                 </div>
               </div>
 

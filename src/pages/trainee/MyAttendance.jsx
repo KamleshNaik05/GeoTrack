@@ -12,6 +12,67 @@ export default function MyAttendance() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [profileWithShift, setProfileWithShift] = useState(null);
+  const [shiftHistory, setShiftHistory] = useState([]);
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    return `${parts[0]}:${parts[1]}`;
+  };
+
+  const formatHistoryDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const formatHistoryText = (history) => {
+    const oldVal = history.old_shift ? `Shift ${history.old_shift}` : 'Unassigned';
+    const newVal = history.new_shift ? `Shift ${history.new_shift}` : 'Unassigned';
+    return `Changed from ${oldVal} → ${newVal} on ${formatHistoryDate(history.changed_at)}`;
+  };
+
+  useEffect(() => {
+    if (!profile) return;
+    
+    const fetchShiftInfo = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*, shifts:shift_code(shift_name, start_time, end_time)')
+          .eq('id', profile.id)
+          .single();
+        if (data) {
+          setProfileWithShift(data);
+        }
+      } catch (err) {
+        console.error('Error fetching profile with shift details:', err.message);
+      }
+    };
+
+    const fetchShiftHistory = async () => {
+      try {
+        const { data } = await supabase
+          .from('shift_history')
+          .select('*')
+          .eq('trainee_id', profile.id)
+          .order('changed_at', { ascending: false })
+          .limit(5);
+        if (data) {
+          setShiftHistory(data);
+        }
+      } catch (err) {
+        console.error('Error fetching shift history:', err.message);
+      }
+    };
+
+    fetchShiftInfo();
+    fetchShiftHistory();
+  }, [profile?.id]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-15
@@ -180,6 +241,33 @@ export default function MyAttendance() {
           </div>
         </div>
       </div>
+
+      {/* Dynamic Shift Info Banner */}
+      <div className="bg-primary-50 border border-primary-100 rounded-lg p-3">
+        {profileWithShift?.shifts ? (
+          <p className="text-sm text-primary-700 font-medium">
+            Your Assigned Shift: {profileWithShift.shift_code} — {profileWithShift.shifts.shift_name} ({formatTime(profileWithShift.shifts.start_time)}–{formatTime(profileWithShift.shifts.end_time)})
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500 italic">
+            No shift assigned. Contact your supervisor.
+          </p>
+        )}
+      </div>
+
+      {/* Shift History Section */}
+      {shiftHistory && shiftHistory.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-sm space-y-2">
+          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Shift Change History</h4>
+          <ul className="divide-y divide-gray-150">
+            {shiftHistory.map((h) => (
+              <li key={h.id} className="py-1.5 text-xs text-gray-500 first:pt-0 last:pb-0 font-medium">
+                • {formatHistoryText(h)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* 2. Monthly Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

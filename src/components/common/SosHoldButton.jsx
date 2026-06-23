@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 import { ShieldAlert } from 'lucide-react';
 
 export default function SosHoldButton({ isMobileFAB = false }) {
-  const { profile, coords } = useAuth();
+  const { profile, coords, isSharing } = useAuth();
+  const isTracking = !!isSharing;
   const [progress, setProgress] = useState(0); // 0 to 100
   const [isHolding, setIsHolding] = useState(false);
   const [isTriggered, setIsTriggered] = useState(false);
@@ -18,6 +19,7 @@ export default function SosHoldButton({ isMobileFAB = false }) {
   const handleStart = (e) => {
     // Prevent default context menus on mobile
     if (e.cancelable) e.preventDefault();
+    if (!isTracking) return; // ← block SOS if GPS off
     if (isTriggered) return;
 
     setIsHolding(true);
@@ -136,12 +138,15 @@ export default function SosHoldButton({ isMobileFAB = false }) {
           onPointerDown={handleStart}
           onPointerUp={handleEnd}
           onPointerLeave={handleEnd}
+          disabled={!isTracking}
           className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg relative transition-all duration-150 active:scale-95 select-none focus:outline-none
-            ${isTriggered 
-              ? 'bg-green-600' 
+            ${!isTracking
+              ? 'bg-gray-300 opacity-50 cursor-not-allowed text-gray-500'
+              : isTriggered 
+              ? 'bg-green-600 text-white' 
               : isHolding 
-              ? 'bg-red-700' 
-              : 'bg-red-650 hover:bg-red-700 bg-red-600 before:content-[\'\'] before:absolute before:inset-0 before:rounded-full before:bg-red-600 before:animate-ping before:opacity-30'
+              ? 'bg-red-700 text-white' 
+              : 'bg-red-650 text-white hover:bg-red-700 bg-red-600 before:content-[\'\'] before:absolute before:inset-0 before:rounded-full before:bg-red-600 before:animate-ping before:opacity-30'
             }
           `}
         >
@@ -152,7 +157,7 @@ export default function SosHoldButton({ isMobileFAB = false }) {
             height="56"
           >
             <circle
-              stroke="white"
+              stroke={!isTracking ? '#D1D5DB' : 'white'}
               fill="transparent"
               strokeWidth={strokeWidth}
               strokeDasharray={circumference + ' ' + circumference}
@@ -165,7 +170,7 @@ export default function SosHoldButton({ isMobileFAB = false }) {
 
           {/* Icon/Symbol */}
           <span className="text-white text-lg relative z-10 select-none pointer-events-none font-bold">
-            {isTriggered ? '✓' : isHolding ? `${Math.ceil((3000 - (progress/100)*3000)/1000)}s` : '🚨'}
+            {!isTracking ? '🚨' : isTriggered ? '✓' : isHolding ? `${Math.ceil((3000 - (progress/100)*3000)/1000)}s` : '🚨'}
           </span>
         </button>
       </div>
@@ -183,8 +188,11 @@ export default function SosHoldButton({ isMobileFAB = false }) {
           onPointerDown={handleStart}
           onPointerUp={handleEnd}
           onPointerLeave={handleEnd}
+          disabled={!isTracking}
           className={`w-[110px] h-[110px] rounded-full flex flex-col items-center justify-center shadow-md relative z-10 transition-colors duration-150 select-none active:scale-95 focus:outline-none
-            ${isTriggered 
+            ${!isTracking
+              ? 'bg-gray-300 opacity-50 cursor-not-allowed text-gray-500'
+              : isTriggered 
               ? 'bg-green-600 text-white' 
               : isHolding 
               ? 'bg-red-700 text-white' 
@@ -201,7 +209,7 @@ export default function SosHoldButton({ isMobileFAB = false }) {
             </div>
           ) : (
             <div className="text-center flex flex-col items-center gap-1">
-              <ShieldAlert size={26} className="pulse-dot" />
+              <ShieldAlert size={26} className={isTracking ? "pulse-dot" : ""} />
               <span className="text-sm font-extrabold uppercase tracking-wider">SEND SOS</span>
             </div>
           )}
@@ -214,7 +222,7 @@ export default function SosHoldButton({ isMobileFAB = false }) {
           height="130"
         >
           <circle
-            stroke={isTriggered ? '#10B981' : '#EF4444'}
+            stroke={!isTracking ? '#D1D5DB' : isTriggered ? '#10B981' : '#EF4444'}
             fill="transparent"
             strokeWidth={strokeWidth}
             strokeDasharray={circumference + ' ' + circumference}
@@ -227,8 +235,14 @@ export default function SosHoldButton({ isMobileFAB = false }) {
       </div>
 
       <span className="text-xs text-red-500 font-semibold mt-4">
-        {isTriggered ? 'SOS Dispatched' : 'Hold for 3 seconds to trigger'}
+        {!isTracking ? 'Enable GPS to activate SOS' : isTriggered ? 'SOS Dispatched' : 'Hold for 3 seconds to trigger'}
       </span>
+
+      {!isTracking && (
+        <p className="text-xs text-center text-gray-400 mt-2">
+          Turn on Location Sharing to enable SOS
+        </p>
+      )}
     </div>
   );
 }
