@@ -244,9 +244,21 @@ export default function MyAttendance() {
 
       {/* Dynamic Shift Info Banner */}
       <div className="bg-primary-50 border border-primary-100 rounded-lg p-3">
-        {profileWithShift?.shifts ? (
+        {profileWithShift?.shift_code ? (
           <p className="text-sm text-primary-700 font-medium">
-            Your Assigned Shift: {profileWithShift.shift_code} — {profileWithShift.shifts.shift_name} ({formatTime(profileWithShift.shifts.start_time)}–{formatTime(profileWithShift.shifts.end_time)})
+            Your Assigned Shift: {profileWithShift.shift_code} — {
+              profileWithShift.shifts?.shift_name || 
+              (profileWithShift.shift_code === 'B' ? 'Evening Shift' :
+               profileWithShift.shift_code === 'C' ? 'Night Shift' : 'Morning Shift')
+            } ({
+              profileWithShift.shifts?.start_time ? formatTime(profileWithShift.shifts.start_time) :
+              (profileWithShift.shift_code === 'B' ? '14:00' :
+               profileWithShift.shift_code === 'C' ? '22:00' : '06:00')
+            }–{
+              profileWithShift.shifts?.end_time ? formatTime(profileWithShift.shifts.end_time) :
+              (profileWithShift.shift_code === 'B' ? '22:00' :
+               profileWithShift.shift_code === 'C' ? '06:00' : '14:00')
+            })
           </p>
         ) : (
           <p className="text-sm text-gray-500 italic">

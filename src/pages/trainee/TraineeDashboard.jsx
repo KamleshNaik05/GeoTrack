@@ -207,13 +207,29 @@ export default function TraineeDashboard() {
             <span>Trainee ID: <strong className="text-gray-700">{displayEmployeeId}</strong></span>
           </div>
           <div className="mt-2">
-            {profile?.shifts ? (
+            {profile?.shift_code ? (
               <div className="space-y-0.5">
                 <div className="text-sm text-gray-600 font-medium">
-                  ⏰ Shift {profile.shift_code} — {profile.shifts.shift_name} ({formatTime(profile.shifts.start_time)}–{formatTime(profile.shifts.end_time)})
+                  ⏰ Shift {profile.shift_code} — {
+                    profile.shifts?.shift_name || 
+                    (profile.shift_code === 'B' ? 'Evening Shift' :
+                     profile.shift_code === 'C' ? 'Night Shift' : 'Morning Shift')
+                  } ({
+                    profile.shifts?.start_time ? formatTime(profile.shifts.start_time) :
+                    (profile.shift_code === 'B' ? '14:00' :
+                     profile.shift_code === 'C' ? '22:00' : '06:00')
+                  }–{
+                    profile.shifts?.end_time ? formatTime(profile.shifts.end_time) :
+                    (profile.shift_code === 'B' ? '22:00' :
+                     profile.shift_code === 'C' ? '06:00' : '14:00')
+                  })
                 </div>
                 <div className="text-[11px] text-gray-450 font-semibold">
-                  ⏰ Your shift starts at {formatTime(profile.shifts.start_time)}
+                  ⏰ Your shift starts at {
+                    profile.shifts?.start_time ? formatTime(profile.shifts.start_time) :
+                    (profile.shift_code === 'B' ? '14:00' :
+                     profile.shift_code === 'C' ? '22:00' : '06:00')
+                  }
                 </div>
               </div>
             ) : (
