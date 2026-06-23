@@ -90,13 +90,18 @@ export default function TraineeDetail() {
         adminId = authData?.user?.id;
       }
 
-      // 2. Update the profiles table in Supabase
-      const { error: profileError } = await supabase
+      // 2. Update the profiles table in Supabase and select to ensure RLS didn't block it
+      const { data: updatedProfile, error: profileError } = await supabase
         .from('profiles')
         .update({ shift_code: selectedValue })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (profileError) throw profileError;
+
+      if (!updatedProfile || updatedProfile.length === 0) {
+        throw new Error('Database update rejected. Please verify you have admin edit permissions configured in your Supabase RLS policies.');
+      }
 
       // 3. Insert record into shift_history table to track changes
       const { error: historyError } = await supabase

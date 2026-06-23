@@ -188,6 +188,10 @@ export default function TraineeDashboard() {
     return `${parts[0]}:${parts[1]}`;
   };
 
+  const displayName = profile?.full_name || authProfile?.full_name || 'Trainee';
+  const displayDivision = profile?.division || authProfile?.division || 'RMHP';
+  const displayEmployeeId = profile?.employee_id || authProfile?.employee_id || 'TR-001';
+
   return (
     <div className="space-y-6 select-none pb-8">
       {/* 1. Welcome Card */}
@@ -195,12 +199,12 @@ export default function TraineeDashboard() {
         <div>
           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">SAIL Industrial Safety Portal</span>
           <h2 className="text-lg font-bold text-primary-500 mt-0.5">
-            Good morning, {profile?.full_name}
+            Good morning, {displayName}
           </h2>
           <div className="flex flex-wrap gap-2 text-xs text-gray-550 mt-1 font-medium">
-            <span>Division: <strong className="text-gray-700">{profile?.division || 'RMHP'}</strong></span>
+            <span>Division: <strong className="text-gray-700">{displayDivision}</strong></span>
             <span>•</span>
-            <span>Trainee ID: <strong className="text-gray-700">{profile?.employee_id || 'TR-001'}</strong></span>
+            <span>Trainee ID: <strong className="text-gray-700">{displayEmployeeId}</strong></span>
           </div>
           <div className="mt-2">
             {profile?.shifts ? (
